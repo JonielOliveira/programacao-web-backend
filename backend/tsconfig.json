@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "es2020",               // Melhora o suporte a recursos modernos (como async/await)
+    "module": "commonjs",             // Compatível com Node.js
+    "rootDir": "./src",               // Onde ficam os arquivos .ts
+    "outDir": "./dist",               // Onde serão salvos os .js compilados
+    "esModuleInterop": true,          // Permite usar 'import express from "express"'
+    "strict": true,                   // Ativa todas as verificações de segurança do TS
+    "skipLibCheck": true              // Ignora checagens em arquivos de tipos externos (evita warnings)
+  }
+}

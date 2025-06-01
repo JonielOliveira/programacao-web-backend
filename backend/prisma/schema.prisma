@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  username     String  @id
+  password     String
+  nome         String
+  tipo         String  @db.Char(1)  // '0' = Admin, '1' = Comum
+  status       String  @db.Char(1)  // 'A' = Ativo, 'I' = Inativo, 'B' = Bloqueado
+  quant_acesso Int     @default(0)
+}
