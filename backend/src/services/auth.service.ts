@@ -1,9 +1,8 @@
 import prisma from '../prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecreto'; // Idealmente em .env
-const JWT_EXPIRES_IN = '1h'; // Ajustável
+import { JWT_SECRET, JWT_EXPIRES_IN, JWT_EXPIRES_IN_MS } from '../config/config';
+import { addMilliseconds } from 'date-fns';
 
 interface LoginInput {
   email: string;
@@ -89,8 +88,18 @@ export async function login({ email, password }: LoginInput) {
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
+  const expiresAt: Date = addMilliseconds(new Date(), JWT_EXPIRES_IN_MS);
 
-  // 8. Retornar token e dados do usuário
+  // 8. Salvar sessão
+  await prisma.session.create({
+    data: {
+      userId: user.id,
+      token,
+      expiresAt
+    }
+  });
+
+  // 9. Retornar token e dados do usuário
   return {
     token,
     user: {

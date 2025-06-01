@@ -1,8 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import dotenv from 'dotenv';
-
-dotenv.config(); //Carrega o .env automaticamente
+import { ADMIN_USERNAME, ADMIN_FULLNAME, ADMIN_EMAIL, ADMIN_PASSWORD } from '../src/config/config';
 
 const prisma = new PrismaClient();
 
@@ -13,17 +11,6 @@ async function main() {
     console.log('Extensão "pgcrypto" verificada/criada com sucesso.');
   } catch (error) {
     console.warn('Não foi possível criar a extensão pgcrypto. Verifique permissões ou crie manualmente.');
-  }
-
-  const {
-    ADMIN_USERNAME,
-    ADMIN_FULLNAME,
-    ADMIN_EMAIL,
-    ADMIN_PASSWORD
-  } = process.env;
-
-  if (!ADMIN_USERNAME || !ADMIN_FULLNAME || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    throw new Error('Variáveis de ambiente do administrador não estão definidas corretamente no .env.');
   }
 
   const senhaCriptografada = await bcrypt.hash(ADMIN_PASSWORD, 10);

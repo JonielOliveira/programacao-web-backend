@@ -16,6 +16,7 @@ model User {
   status    String  @db.Char(1)  // 'A' = Active, 'I' = Inactive, 'B' = Blocked
 
   passwords UserPassword[]
+  sessions Session[]
 }
 
 model UserPassword {
@@ -38,4 +39,14 @@ enum PasswordStatus {
   valid
   expired
   blocked
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  revoked    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
 }
