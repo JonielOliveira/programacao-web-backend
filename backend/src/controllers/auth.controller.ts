@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { login } from '../services/auth.service';
+import { login, logout } from '../services/auth.service';
 
 export const loginController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -19,6 +19,25 @@ export const loginController = async (req: Request, res: Response): Promise<void
 
   } catch (error: any) {
     res.status(401).json({ error: error.message || 'Erro no login.' });
+    return;
+  }
+};
+
+export const logoutController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = req.user;
+
+    if (!user || !token) {
+      res.status(400).json({ error: 'Usuário ou token não fornecido.' });
+      return;
+    }
+
+    const result = await logout(user.userId, token);
+    res.status(200).json(result);
+    return;
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro ao fazer logout.' });
     return;
   }
 };

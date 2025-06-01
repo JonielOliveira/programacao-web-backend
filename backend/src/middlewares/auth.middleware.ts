@@ -15,11 +15,12 @@ declare module 'express-serve-static-core' {
   }
 }
 
-export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token não fornecido ou inválido.' });
+    res.status(401).json({ error: 'Token não fornecido ou inválido.' });
+    return;
   }
 
   const token = authHeader.split(' ')[1];
@@ -32,12 +33,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     });
 
     if (!session || session.revoked || session.expiresAt < new Date()) {
-      return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+      res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+      return;
     }
 
     req.user = decoded;
-    next();
+    return next();
   } catch (error) {
-    return res.status(401).json({ error: 'Token inválido ou expirado.' });
+    res.status(401).json({ error: 'Token inválido ou expirado.' });
+    return;
   }
 }

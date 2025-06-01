@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET, JWT_EXPIRES_IN, JWT_EXPIRES_IN_MS } from '../config/config';
 import { addMilliseconds } from 'date-fns';
+import { Session } from '@prisma/client';
 
 interface LoginInput {
   email: string;
@@ -109,4 +110,30 @@ export async function login({ email, password }: LoginInput) {
       role: user.role,
     },
   };
+}
+
+export async function logout(userId: string, token: string) {
+  // 1. Buscar todas as sessões do usuário
+  const sessions = await prisma.session.findMany({
+    where: { userId }
+  });
+
+  // 2. Procurar a sessão que bate com o token fornecido
+  const session = sessions.find((s: Session) => s.token === token);
+
+  if (!session) {
+    throw new Error('Sessão não encontrada ou não pertence ao usuário.');
+  }
+
+  if (session.revoked) {
+    throw new Error('Sessão já encerrada.');
+  }
+
+  // 3. Revogar a sessão
+  await prisma.session.update({
+    where: { id: session.id },
+    data: { revoked: true },
+  });
+
+  return { message: 'Logout realizado com sucesso.' };
 }
