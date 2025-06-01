@@ -7,5 +7,6 @@
     "esModuleInterop": true,          // Permite usar 'import express from "express"'
     "strict": true,                   // Ativa todas as verificações de segurança do TS
     "skipLibCheck": true              // Ignora checagens em arquivos de tipos externos (evita warnings)
-  }
+  },
+  "exclude": ["prisma/seed.ts"]
 }
