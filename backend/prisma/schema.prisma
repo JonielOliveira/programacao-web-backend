@@ -15,8 +15,10 @@ model User {
   role      String  @db.Char(1)  // '0' = Admin, '1' = Regular
   status    String  @db.Char(1)  // 'A' = Active, 'I' = Inactive, 'B' = Blocked
 
-  passwords UserPassword[]
-  sessions Session[]
+  passwords        UserPassword[]
+  sessions         Session[]
+  sentMessages     Message[]     @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
 }
 
 model UserPassword {
@@ -49,4 +51,28 @@ model Session {
   revoked    Boolean  @default(false)
   createdAt  DateTime @default(now())
   expiresAt  DateTime
+}
+
+model Message {
+  id          String         @id @default(uuid())
+  content     String
+  sentAt      DateTime       @default(now())
+
+  senderId    String
+  sender      User           @relation("SentMessages", fields: [senderId], references: [id])
+
+  receiverId  String
+  receiver    User           @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  status      MessageStatus  @default(SENT)
+  readAt      DateTime?
+  isDeleted   Boolean        @default(false)
+  deletedAt   DateTime?
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  ARCHIVED
 }
