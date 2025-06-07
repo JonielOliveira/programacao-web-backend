@@ -1,4 +1,5 @@
 import prisma from '../prisma/client';
+import { encryptMessage, decryptMessage } from '../utils/crypto.util';
 
 interface CreateMessageInput {
   senderId: string;
@@ -15,7 +16,7 @@ interface UpdateMessageInput {
 }
 
 export async function getAllMessagesForUser(userId: string) {
-  return prisma.message.findMany({
+  const messages = await prisma.message.findMany({
     where: {
       OR: [
         { senderId: userId },
@@ -26,10 +27,15 @@ export async function getAllMessagesForUser(userId: string) {
       sentAt: 'desc',
     },
   });
+
+  return messages.map((msg) => ({
+    ...msg,
+    content: decryptMessage(msg.content, msg.iv),
+  }));
 }
 
 export async function getConversationBetweenUsers(userAId: string, userBId: string) {
-  return prisma.message.findMany({
+  const messages = await prisma.message.findMany({
     where: {
       OR: [
         { senderId: userAId, receiverId: userBId },
@@ -37,9 +43,14 @@ export async function getConversationBetweenUsers(userAId: string, userBId: stri
       ],
     },
     orderBy: {
-      sentAt: 'asc', // ordem cronológica
+      sentAt: 'asc',
     },
   });
+
+  return messages.map((msg) => ({
+    ...msg,
+    content: decryptMessage(msg.content, msg.iv),
+  }));
 }
 
 export async function getMessageById(id: string) {
@@ -51,15 +62,21 @@ export async function getMessageById(id: string) {
     throw new Error('Mensagem não encontrada.');
   }
 
-  return message;
+  return {
+    ...message,
+    content: decryptMessage(message.content, message.iv),
+  };
 }
 
 export async function createMessage(data: CreateMessageInput) {
+  const encrypted = encryptMessage(data.content);
+
   return prisma.message.create({
     data: {
       senderId: data.senderId,
       receiverId: data.receiverId,
-      content: data.content,
+      content: encrypted.content,
+      iv: encrypted.iv,
     },
   });
 }
@@ -68,9 +85,17 @@ export async function updateMessage(id: string, data: UpdateMessageInput) {
   const existing = await prisma.message.findUnique({ where: { id } });
   if (!existing) throw new Error('Mensagem não encontrada.');
 
+  const updatedData: any = { ...data };
+
+  if (data.content !== undefined) {
+    const encrypted = encryptMessage(data.content);
+    updatedData.content = encrypted.content;
+    updatedData.iv = encrypted.iv;
+  }
+
   return prisma.message.update({
     where: { id },
-    data,
+    data: updatedData,
   });
 }
 
