@@ -75,3 +75,46 @@ export async function deleteUser(id: string) {
 
   return prisma.user.delete({ where: { id } });
 }
+
+export async function getPaginatedUsers(
+  page: number,
+  limit: number,
+  orderBy: string,
+  sort: 'asc' | 'desc'
+) {
+  const skip = (page - 1) * limit;
+
+  // Campos válidos para ordenação
+  const allowedOrderFields = ['username', 'email', 'fullName', 'role', 'status'];
+
+  const orderField = allowedOrderFields.includes(orderBy) ? orderBy : 'username';
+
+  const [total, users] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.findMany({
+      skip,
+      take: limit,
+      orderBy: {
+        [orderField]: sort,
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        fullName: true,
+        role: true,
+        status: true,
+      },
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data: users,
+    total,
+    page,
+    limit,
+    totalPages,
+  };
+}
