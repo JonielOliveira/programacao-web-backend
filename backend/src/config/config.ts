@@ -21,3 +21,9 @@ export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456';
 if (!ADMIN_USERNAME || !ADMIN_FULLNAME || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
   throw new Error('[config] Variáveis de ambiente do administrador não estão definidas corretamente.');
 }
+
+export const MESSAGE_SECRET_KEY = process.env.MESSAGE_SECRET_KEY || 'mensagemsupersecreta';
+
+if (!MESSAGE_SECRET_KEY || MESSAGE_SECRET_KEY.length < 16) {
+  throw new Error('[config] MESSAGE_SECRET_KEY deve estar definida e ter no mínimo 16 caracteres.');
+}
