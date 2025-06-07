@@ -56,6 +56,7 @@ model Session {
 model Message {
   id          String         @id @default(uuid())
   content     String
+  iv          String
   sentAt      DateTime       @default(now())
 
   senderId    String
