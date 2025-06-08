@@ -92,10 +92,11 @@ export async function login({ email, password }: LoginInput) {
   const expiresAt: Date = addMilliseconds(new Date(), JWT_EXPIRES_IN_MS);
 
   // 8. Salvar sessão
+  const tokenHash = await bcrypt.hash(token, 10);
   await prisma.session.create({
     data: {
       userId: user.id,
-      token,
+      tokenHash,
       expiresAt
     }
   });
@@ -113,25 +114,33 @@ export async function login({ email, password }: LoginInput) {
 }
 
 export async function logout(userId: string, token: string) {
-  // 1. Buscar todas as sessões do usuário
+  // 1. Buscar todas as sessões válidas do usuário
   const sessions = await prisma.session.findMany({
-    where: { userId }
+    where: {
+      userId,
+      revoked: false,
+      expiresAt: { gt: new Date() },
+    },
   });
 
-  // 2. Procurar a sessão que bate com o token fornecido
-  const session = sessions.find((s: Session) => s.token === token);
+  // 2. Procurar a sessão cujo tokenHash bate com o token fornecido
+  let matchedSession = null;
 
-  if (!session) {
-    throw new Error('Sessão não encontrada ou não pertence ao usuário.');
+  for (const session of sessions) {
+    const match = await bcrypt.compare(token, session.tokenHash);
+    if (match) {
+      matchedSession = session;
+      break;
+    }
   }
 
-  if (session.revoked) {
-    throw new Error('Sessão já encerrada.');
+  if (!matchedSession) {
+    throw new Error('Sessão não encontrada ou token inválido.');
   }
 
   // 3. Revogar a sessão
   await prisma.session.update({
-    where: { id: session.id },
+    where: { id: matchedSession.id },
     data: { revoked: true },
   });
 
