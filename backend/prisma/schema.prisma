@@ -15,7 +15,8 @@ model User {
   role        String  @db.Char(1)  // '0' = Admin, '1' = Regular
   status      String  @db.Char(1)  // 'A' = Active, 'I' = Inactive, 'B' = Blocked
   accessCount Int     @default(0)
-  
+  photo       UserPhoto?
+
   passwords        UserPassword[]
   sessions         Session[]
   sentMessages     Message[]     @relation("SentMessages")
@@ -42,6 +43,15 @@ enum PasswordStatus {
   valid
   expired
   blocked
+}
+
+model UserPhoto {
+  userId   String   @id
+  name     String
+  mimeType String
+  content  Bytes
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Session {
