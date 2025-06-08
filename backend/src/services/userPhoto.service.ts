@@ -16,3 +16,15 @@ export async function uploadUserPhoto(userId: string, file: Express.Multer.File)
     },
   });
 }
+
+export async function getUserPhotoById(userId: string) {
+  const photo = await prisma.userPhoto.findUnique({
+    where: { userId },
+  });
+
+  if (!photo) {
+    throw new Error('Foto não encontrada.');
+  }
+
+  return photo;
+}
