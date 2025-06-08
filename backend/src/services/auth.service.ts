@@ -101,7 +101,15 @@ export async function login({ email, password }: LoginInput) {
     }
   });
 
-  // 9. Retornar token e dados do usuário
+  // 9. Incrementar accessCount
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      accessCount: { increment: 1 },
+    },
+  });
+
+  // 10. Retornar token e dados do usuário
   return {
     token,
     user: {
