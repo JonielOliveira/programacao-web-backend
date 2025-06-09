@@ -28,3 +28,19 @@ export async function getUserPhotoById(userId: string) {
 
   return photo;
 }
+
+export async function deleteUserPhoto(userId: string) {
+  const photo = await prisma.userPhoto.findUnique({
+    where: { userId },
+  });
+
+  if (!photo) {
+    throw new Error('Foto não encontrada.');
+  }
+
+  await prisma.userPhoto.delete({
+    where: { userId },
+  });
+
+  return { message: 'Foto excluída com sucesso.' };
+}
