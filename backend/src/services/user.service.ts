@@ -80,20 +80,42 @@ export async function getPaginatedUsers(
   page: number,
   limit: number,
   orderBy: string,
-  sort: 'asc' | 'desc'
+  sort: 'asc' | 'desc',
+  search?: string,
+  status?: string,
+  role?: string
 ) {
   const skip = (page - 1) * limit;
 
   // Campos válidos para ordenação
   const allowedOrderFields = ['username', 'email', 'fullName', 'role', 'status'];
-
   const orderField = allowedOrderFields.includes(orderBy) ? orderBy : 'username';
 
+  // Filtros
+  const where: any = {};
+
+  if (search) {
+    where.OR = [
+      { username: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { fullName: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  if (status) {
+    where.status = status;
+  }
+
+  if (role) {
+    where.role = role;
+  }
+
   const [total, users] = await Promise.all([
-    prisma.user.count(),
+    prisma.user.count({ where }),
     prisma.user.findMany({
       skip,
       take: limit,
+      where,
       orderBy: {
         [orderField]: sort,
       },

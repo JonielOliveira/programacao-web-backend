@@ -16,10 +16,14 @@ export const getAllUsersController = async (req: Request, res: Response): Promis
     const orderBy = (req.query.orderBy as string) || 'username';
     const sort = (req.query.sort as string)?.toLowerCase() === 'desc' ? 'desc' : 'asc';
 
-    const result = await getPaginatedUsers(page, limit, orderBy, sort);
+    const search = req.query.search as string | undefined;
+    const status = req.query.status as string | undefined;
+    const role = req.query.role as string | undefined;
+
+    const result = await getPaginatedUsers(page, limit, orderBy, sort, search, status, role);
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Erro ao buscar usuários.' });
   }
 };
 
