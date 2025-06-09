@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/auth.middleware';
-import { requireRole } from '../middlewares/requireRole';
+import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
 import {
   getAllUsersController,
   getUserByIdController,

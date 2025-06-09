@@ -16,6 +16,7 @@ declare module 'express-serve-static-core' {
   }
 }
 
+// Autenticação JWT com verificação de sessão
 export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
@@ -61,4 +62,79 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   } catch (error) {
     res.status(401).json({ error: 'Token inválido ou expirado.' });
   }
+}
+
+// Apenas usuários com papel específico
+export function requireRole(allowedRoles: string[]) { 
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      res.status(403).json({ error: 'Acesso negado. Permissão insuficiente.' });
+      return;
+    }
+
+    next();
+  };
+}
+
+// Apenas o próprio usuário
+export function requireOwnership(paramKey: string = 'id') {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    }
+
+    const requestedId = req.params[paramKey];
+    if (req.user.userId !== requestedId) {
+      res.status(403).json({ error: 'Acesso negado. Permissão insuficiente.' });
+      return;
+    }
+
+    next();
+  };
+}
+
+// Dono OU papel permitido
+export function requireRoleOrOwner(allowedRoles: string[], paramKey: string = 'id') {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    }
+
+    const isOwner = req.user.userId === req.params[paramKey];
+    const isAllowedRole = allowedRoles.includes(req.user.role);
+
+    if (!isOwner && !isAllowedRole) {
+      res.status(403).json({ error: 'Acesso negado. Permissão insuficiente.' });
+      return;
+    }
+
+    next();
+  };
+}
+
+// Dono E papel obrigatório
+export function requireRoleAndOwner(requiredRoles: string[], paramKey: string = 'id') {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    }
+
+    const isOwner = req.user.userId === req.params[paramKey];
+    const hasRole = requiredRoles.includes(req.user.role);
+
+    if (!(isOwner && hasRole)) {
+      res.status(403).json({ error: 'Acesso negado. Permissão insuficiente.' });
+      return;
+    }
+
+    next();
+  };
 }
