@@ -131,11 +131,12 @@ export async function getPaginatedUsers(
   ]);
 
   const totalPages = Math.ceil(total / limit);
+  const currentPage = total === 0 ? 0 : page;
 
   return {
     data: users,
     total,
-    page,
+    page: currentPage,
     limit,
     totalPages,
   };
