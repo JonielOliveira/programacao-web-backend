@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { login, logout } from '../services/auth.service';
+import { login, logout, getMe } from '../services/auth.service';
 
 export const loginController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -41,3 +41,18 @@ export const logoutController = async (req: Request, res: Response): Promise<voi
     return;
   }
 };
+
+export const getMeController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    }
+
+    const user = await getMe(req.user.userId);
+    res.status(200).json(user);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro ao buscar usuário.' });
+  }
+};
+

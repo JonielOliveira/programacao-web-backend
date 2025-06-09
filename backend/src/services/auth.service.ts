@@ -154,3 +154,24 @@ export async function logout(userId: string, token: string) {
 
   return { message: 'Logout realizado com sucesso.' };
 }
+
+export async function getMe(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      fullName: true,
+      email: true,
+      role: true,
+      status: true,
+      accessCount: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error('Usuário não encontrado.');
+  }
+
+  return user;
+}
