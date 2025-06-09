@@ -2,8 +2,10 @@ import prisma from '../prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET, JWT_EXPIRES_IN, JWT_EXPIRES_IN_MS } from '../config/config';
-import { addMilliseconds } from 'date-fns';
+import { addMilliseconds, addMinutes } from 'date-fns';
 import { Session } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
+import { sendEmail } from '../utils/email.util';
 
 interface LoginInput {
   email: string;
@@ -174,4 +176,46 @@ export async function getMe(userId: string) {
   }
 
   return user;
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  // 1. Busca o usuário com base no e-mail
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  // 2. Se não existir, retorna silenciosamente (não revela)
+  if (!user) return;
+
+  // 3. Gera uma senha temporária
+  const tempPassword = uuidv4().slice(0, 8); // 8 caracteres
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+  // 4. Cria registro de senha temporária
+  await prisma.userPassword.create({
+    data: {
+      userId: user.id,
+      passwordHash,
+      isTemp: true,
+      status: 'valid',
+      expiresAt: addMinutes(new Date(), 15), // válida por 15 minutos
+    },
+  });
+
+  // 5. Envia e-mail com a senha temporária
+  await sendEmail({
+    to: email,
+    subject: 'Senha temporária para acesso ao sistema',
+    text: `Olá ${user.fullName},
+
+Uma nova senha temporária foi gerada para você:
+
+${tempPassword}
+
+Ela é válida por apenas 15 minutos. Acesse o sistema com ela e altere sua senha em seguida.
+
+Se você não solicitou isso, ignore este e-mail.
+
+Sistema Chat.`,
+  });
 }

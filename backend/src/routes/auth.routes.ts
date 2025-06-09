@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { loginController, logoutController, getMeController } from '../controllers/auth.controller';
+import { loginController, 
+         logoutController, 
+         getMeController,
+         requestPasswordResetController
+       } from '../controllers/auth.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -8,5 +12,6 @@ const router = Router();
 router.post('/login', loginController);
 router.post('/logout', authMiddleware, logoutController);
 router.get('/me', authMiddleware, getMeController);
+router.post('/request-password-reset', requestPasswordResetController);
 
 export default router;

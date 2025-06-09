@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { login, logout, getMe } from '../services/auth.service';
+import { login, logout, getMe, requestPasswordReset } from '../services/auth.service';
 
 export const loginController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -56,3 +56,24 @@ export const getMeController = async (req: Request, res: Response): Promise<void
   }
 };
 
+export const requestPasswordResetController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ error: 'E-mail inválido.' });
+      return;
+    }
+
+    // Tenta resetar a senha (silenciosamente se o usuário não existir)
+    await requestPasswordReset(email);
+
+    res.status(200).json({
+      message: 'Se o e-mail informado estiver cadastrado, uma senha temporária foi enviada.',
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: error.message || 'Erro ao solicitar redefinição de senha.',
+    });
+  }
+};
