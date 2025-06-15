@@ -39,3 +39,21 @@ export async function sendEmail({ to, subject, text }: SendEmailOptions): Promis
 → Corpo: ${text}\n`);
   }
 }
+
+export async function sendTemporaryPasswordEmail(user: { fullName: string; email: string }, tempPassword: string) {
+  await sendEmail({
+    to: user.email,
+    subject: 'Senha temporária para acesso ao sistema',
+    text: `Olá ${user.fullName},
+
+Uma nova senha temporária foi gerada para você:
+
+${tempPassword}
+
+Ela é válida por apenas 15 minutos. Acesse o sistema com ela e altere sua senha em seguida.
+
+Se você não solicitou isso, ignore este e-mail.
+
+Sistema Chat.`,
+  });
+}
