@@ -5,7 +5,7 @@ import { JWT_SECRET, JWT_EXPIRES_IN, JWT_EXPIRES_IN_MS } from '../config/config'
 import { addMilliseconds, addMinutes } from 'date-fns';
 import { Session } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
-import { sendEmail } from '../utils/email.util';
+import { sendTemporaryPasswordEmail } from '../utils/email.util';
 
 interface LoginInput {
   email: string;
@@ -178,6 +178,54 @@ export async function getMe(userId: string) {
   return user;
 }
 
+export async function refreshPasswordStates(userId: string): Promise<void> {
+  const now = new Date();
+
+  // Função interna para aplicar as atualizações de consistência
+  async function refresh(passwordId: string) {
+    const password = await prisma.userPassword.findUnique({ where: { id: passwordId } });
+    if (!password) return;
+
+    const updates: any = {};
+
+    // Se estiver bloqueado mas o tempo de bloqueio já passou
+    if (password.lockedUntil && password.lockedUntil <= now && password.status === 'blocked') {
+      updates.lockedUntil = null;
+      updates.lockoutLevel = 0;
+      updates.attempts = 0;
+      updates.status = 'valid';
+    }
+
+    // Se já expirou (e ainda não foi marcado como expirado)
+    if (password.isTemp && password.expiresAt && password.expiresAt <= now && (password.status === 'valid' || updates.status)) {
+      updates.status = 'expired';
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.userPassword.update({
+        where: { id: password.id },
+        data: updates,
+      });
+    }
+  }
+
+  // Busca senha temporária
+  const existingTemp = await prisma.userPassword.findFirst({
+    where: { userId, isTemp: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Busca senha permanente
+  const existingPerm = await prisma.userPassword.findFirst({
+    where: { userId, isTemp: false },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Executa reconciliação em ambas, se existirem
+  if (existingTemp) await refresh(existingTemp.id);
+  if (existingPerm) await refresh(existingPerm.id);
+}
+
 export async function requestPasswordReset(email: string): Promise<void> {
   // 1. Busca o usuário com base no e-mail
   const user = await prisma.user.findUnique({
@@ -187,35 +235,62 @@ export async function requestPasswordReset(email: string): Promise<void> {
   // 2. Se não existir, retorna silenciosamente (não revela)
   if (!user) return;
 
-  // 3. Gera uma senha temporária
+  // 3. Atualiza estados de senhas para o usuário
+  await refreshPasswordStates(user.id);
+
+  // 4. Gera uma senha temporária
   const tempPassword = uuidv4().slice(0, 8); // 8 caracteres
   const passwordHash = await bcrypt.hash(tempPassword, 10);
-
-  // 4. Cria registro de senha temporária
-  await prisma.userPassword.create({
-    data: {
+  
+  // 5. Verifica se já existe uma senha temporária
+  const existingTemp = await prisma.userPassword.findFirst({
+    where: {
       userId: user.id,
-      passwordHash,
       isTemp: true,
-      status: 'valid',
-      expiresAt: addMinutes(new Date(), 15), // válida por 15 minutos
+    },
+    orderBy: {
+      createdAt: 'desc',
     },
   });
 
-  // 5. Envia e-mail com a senha temporária
-  await sendEmail({
-    to: email,
-    subject: 'Senha temporária para acesso ao sistema',
-    text: `Olá ${user.fullName},
+  // 6. Se existir, atualiza ou cria uma nova senha temporária
+  if (existingTemp) {
 
-Uma nova senha temporária foi gerada para você:
+    const now = new Date();
 
-${tempPassword}
+    // Verificações permanecem
+    if (existingTemp.lockedUntil && existingTemp.lockedUntil > now) {
+      throw new Error('Sua conta está temporariamente bloqueada. Tente novamente mais tarde.');
+    }
 
-Ela é válida por apenas 15 minutos. Acesse o sistema com ela e altere sua senha em seguida.
+    if (existingTemp.expiresAt && existingTemp.expiresAt > now) {
+      throw new Error('Já existe uma senha temporária ativa. Verifique seu e-mail.');
+    }
 
-Se você não solicitou isso, ignore este e-mail.
-
-Sistema Chat.`,
-  });
+    // Aqui sim, substitui por nova senha
+    await prisma.userPassword.update({
+      where: { id: existingTemp.id },
+      data: {
+        passwordHash,
+        attempts: 0,
+        lockedUntil: null,
+        lockoutLevel: 0,
+        status: 'valid',
+        expiresAt: addMinutes(new Date(), 15),
+      },
+    });
+    await sendTemporaryPasswordEmail(user, tempPassword);
+  } else {
+    // Criação normal
+    await prisma.userPassword.create({
+      data: {
+        userId: user.id,
+        passwordHash,
+        isTemp: true,
+        status: 'valid',
+        expiresAt: addMinutes(new Date(), 15),
+      },
+    });
+    await sendTemporaryPasswordEmail(user, tempPassword);
+  }
 }
