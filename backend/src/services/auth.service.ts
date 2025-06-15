@@ -21,64 +21,74 @@ export async function login({ email, password }: LoginInput) {
   if (!user) {
     throw new Error('Credenciais inválidas.');
   }
-
+  
   // 2. Verificar status do usuário
   if (user.status !== 'A') {
     throw new Error('Usuário inativo ou bloqueado.');
   }
 
-  // 3. Buscar a senha mais recente e válida
-  const latestPassword = await prisma.userPassword.findFirst({
-    where: {
-      userId: user.id,
-      status: 'valid',
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  // 3. Atualiza estados de senha antes de login
+  await refreshPasswordStates(user.id);
 
-  if (!latestPassword) {
-    throw new Error('Senha não encontrada ou expirada.');
+  // 4. Busca as senhas válidas (não expiradas ou bloqueadas)
+  const [tempPassword, permPassword] = await Promise.all([
+    prisma.userPassword.findFirst({
+      where: { userId: user.id, isTemp: true, status: 'valid' },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.userPassword.findFirst({
+      where: { userId: user.id, isTemp: false, status: 'valid' },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
+  // 5. Verificar senhas
+  const passwordsToTry = [tempPassword, permPassword].filter(Boolean);
+
+  if (passwordsToTry.length === 0) {
+    throw new Error('Nenhuma senha válida encontrada.');
   }
 
-  // 4. Verificar bloqueio temporário
   const now = new Date();
-  if (latestPassword.lockedUntil && latestPassword.lockedUntil > now) {
-    throw new Error('Usuário temporariamente bloqueado. Tente novamente mais tarde.');
-  }
+  let senhaValida = false;
+  let senhaUtilizada: typeof tempPassword | typeof permPassword = null;
 
-  // 5. Verificar senha
-  const senhaValida = await bcrypt.compare(password, latestPassword.passwordHash);
+  for (const senha of passwordsToTry) {
+    // Verifica bloqueio
+    if (senha!.lockedUntil && senha!.lockedUntil > now) continue;
+
+    const match = await bcrypt.compare(password, senha!.passwordHash);
+    if (match) {
+      senhaValida = true;
+      senhaUtilizada = senha;
+      break;
+    }
+  }
 
   if (!senhaValida) {
-    // Incrementar tentativa
-    const novasTentativas = latestPassword.attempts + 1;
+    for (const senha of passwordsToTry) {
+      const novasTentativas = senha!.attempts + 1;
+      const updates: any = { attempts: novasTentativas };
 
-    const atualizacoes: any = {
-      attempts: novasTentativas,
-    };
+      if (novasTentativas >= senha!.maxAttempts) {
+        updates.lockedUntil = new Date(now.getTime() + 15 * 60000);
+        updates.lockoutLevel = 1; 
+        updates.status = 'blocked';
+      }
 
-    if (novasTentativas >= latestPassword.maxAttempts) {
-      atualizacoes.lockedUntil = new Date(now.getTime() + 15 * 60000); // 15 minutos
-      atualizacoes.status = 'blocked';
+      await prisma.userPassword.update({
+        where: { id: senha!.id },
+        data: updates,
+      });
     }
-
-    await prisma.userPassword.update({
-      where: { id: latestPassword.id },
-      data: atualizacoes,
-    });
 
     throw new Error('Senha incorreta.');
   }
 
-  // 6. Resetar tentativas
+  // 6. Resetar tentativas apenas da senha utilizada
   await prisma.userPassword.update({
-    where: { id: latestPassword.id },
-    data: {
-      attempts: 0,
-      lockedUntil: null,
-    },
+    where: { id: senhaUtilizada!.id },
+    data: { attempts: 0, lockedUntil: null },
   });
 
   // 7. Gerar token
@@ -91,24 +101,19 @@ export async function login({ email, password }: LoginInput) {
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
-  const expiresAt: Date = addMilliseconds(new Date(), JWT_EXPIRES_IN_MS);
 
   // 8. Salvar sessão
+  const expiresAt = addMilliseconds(new Date(), JWT_EXPIRES_IN_MS);
   const tokenHash = await bcrypt.hash(token, 10);
+
   await prisma.session.create({
-    data: {
-      userId: user.id,
-      tokenHash,
-      expiresAt
-    }
+    data: { userId: user.id, tokenHash, expiresAt },
   });
 
   // 9. Incrementar accessCount
   await prisma.user.update({
     where: { id: user.id },
-    data: {
-      accessCount: { increment: 1 },
-    },
+    data: { accessCount: { increment: 1 } },
   });
 
   // 10. Retornar token e dados do usuário
