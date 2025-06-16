@@ -30,26 +30,68 @@ export async function login({ email, password }: LoginInput) {
   // 3. Atualiza estados de senha antes de login
   await refreshPasswordStates(user.id);
 
-  // 4. Busca as senhas válidas (não expiradas ou bloqueadas)
+  // 4. Validar a senha do usuário
+  await verifyUserPassword(user.id, password);
+
+  // 5. Gerar token
+  const token = jwt.sign(
+    {
+      userId: user.id,
+      role: user.role,
+      email: user.email,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+
+  // 6. Salvar sessão
+  const expiresAt = addMilliseconds(new Date(), JWT_EXPIRES_IN_MS);
+  const tokenHash = await bcrypt.hash(token, 10);
+
+  await prisma.session.create({
+    data: { userId: user.id, tokenHash, expiresAt },
+  });
+
+  // 7. Incrementar accessCount
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { accessCount: { increment: 1 } },
+  });
+
+  // 8. Retornar token e dados do usuário
+  return {
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    },
+  };
+}
+
+export async function verifyUserPassword(userId: string, password: string) {
+  const now = new Date();
+
+  // 1. Busca as senhas válidas (não expiradas ou bloqueadas)
   const [tempPassword, permPassword] = await Promise.all([
     prisma.userPassword.findFirst({
-      where: { userId: user.id, isTemp: true, status: 'valid' },
+      where: { userId: userId, isTemp: true, status: 'valid' },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.userPassword.findFirst({
-      where: { userId: user.id, isTemp: false, status: 'valid' },
+      where: { userId: userId, isTemp: false, status: 'valid' },
       orderBy: { createdAt: 'desc' },
     }),
   ]);
 
-  // 5. Verificar senhas
+  // 2. Verificar senhas
   const passwordsToTry = [tempPassword, permPassword].filter(Boolean);
 
   if (passwordsToTry.length === 0) {
     throw new Error('Nenhuma senha válida encontrada.');
   }
 
-  const now = new Date();
   let senhaValida = false;
   let senhaUtilizada: typeof tempPassword | typeof permPassword = null;
 
@@ -85,47 +127,13 @@ export async function login({ email, password }: LoginInput) {
     throw new Error('Senha incorreta.');
   }
 
-  // 6. Resetar tentativas apenas da senha utilizada
+  // 3. Resetar tentativas apenas da senha utilizada
   await prisma.userPassword.update({
     where: { id: senhaUtilizada!.id },
-    data: { attempts: 0, lockedUntil: null },
+    data: { attempts: 0, lockedUntil: null, lockoutLevel: 0 },
   });
 
-  // 7. Gerar token
-  const token = jwt.sign(
-    {
-      userId: user.id,
-      role: user.role,
-      email: user.email,
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
-
-  // 8. Salvar sessão
-  const expiresAt = addMilliseconds(new Date(), JWT_EXPIRES_IN_MS);
-  const tokenHash = await bcrypt.hash(token, 10);
-
-  await prisma.session.create({
-    data: { userId: user.id, tokenHash, expiresAt },
-  });
-
-  // 9. Incrementar accessCount
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { accessCount: { increment: 1 } },
-  });
-
-  // 10. Retornar token e dados do usuário
-  return {
-    token,
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-    },
-  };
+  return senhaUtilizada;
 }
 
 export async function logout(userId: string, token: string) {
@@ -298,4 +306,60 @@ export async function requestPasswordReset(email: string): Promise<void> {
     });
     await sendTemporaryPasswordEmail(user, tempPassword);
   }
+}
+
+interface ChangePasswordInput {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
+export async function changePassword({ userId, currentPassword, newPassword }: ChangePasswordInput) {
+
+  // 1. Atualiza estados de senhas (expired, unlocked, etc)
+  await refreshPasswordStates(userId);
+
+  // 2. Verifica se a senha atual é válida (temporária ou permanente)
+  await verifyUserPassword(userId, currentPassword);
+
+  // 3. Criptografa a nova senha
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+  // 4. Verifica se já existe uma senha permanente
+  const existingPerm = await prisma.userPassword.findFirst({
+    where: { userId, isTemp: false },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (existingPerm) {
+    // Atualiza a senha permanente existente
+    await prisma.userPassword.update({
+      where: { id: existingPerm.id },
+      data: {
+        passwordHash: newPasswordHash,
+        attempts: 0,
+        lockedUntil: null,
+        lockoutLevel: 0,
+        status: 'valid',
+      },
+    });
+  } else {
+    // Cria nova senha permanente
+    await prisma.userPassword.create({
+      data: {
+        userId,
+        passwordHash: newPasswordHash,
+        isTemp: false,
+        status: 'valid',
+      },
+    });
+  }
+
+  // 5. Invalida a senha temporária, se existir
+  await prisma.userPassword.updateMany({
+    where: { userId, isTemp: true, status: 'valid' },
+    data: { status: 'expired' },
+  });
+
+  return { message: 'Senha atualizada com sucesso.' };
 }

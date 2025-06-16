@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { loginController, 
          logoutController, 
          getMeController,
-         requestPasswordResetController
+         requestPasswordResetController,
+         changePasswordController
        } from '../controllers/auth.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
@@ -13,5 +14,6 @@ router.post('/login', loginController);
 router.post('/logout', authMiddleware, logoutController);
 router.get('/me', authMiddleware, getMeController);
 router.post('/request-password-reset', requestPasswordResetController);
+router.post('/change-password', authMiddleware, changePasswordController);
 
 export default router;

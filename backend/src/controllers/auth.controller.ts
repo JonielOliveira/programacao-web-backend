@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { login, logout, getMe, requestPasswordReset } from '../services/auth.service';
+import { login, logout, getMe, requestPasswordReset, changePassword } from '../services/auth.service';
 
 export const loginController = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -75,5 +75,33 @@ export const requestPasswordResetController = async (req: Request, res: Response
     res.status(500).json({
       error: error.message || 'Erro ao solicitar redefinição de senha.',
     });
+  }
+};
+
+export const changePasswordController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias.' });
+      return;
+    }
+
+    const result = await changePassword({
+      userId: user.userId,
+      currentPassword,
+      newPassword,
+    });
+
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Erro ao alterar senha.' });
   }
 };
