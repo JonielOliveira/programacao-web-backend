@@ -23,6 +23,8 @@ model User {
   receivedMessages Message[]     @relation("ReceivedMessages")
   sentInvites      Invite[]      @relation("SentInvites")
   receivedInvites  Invite[]      @relation("ReceivedInvites")
+  connectionsA     Connection[]  @relation("ConnectionA")
+  connectionsB     Connection[]  @relation("ConnectionB")
 }
 
 model UserPassword {
@@ -102,4 +104,16 @@ model Invite {
   receiver   User     @relation("ReceivedInvites", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
+}
+
+model Connection {
+  id         String   @id @default(uuid())
+  userAId    String
+  userBId    String
+  createdAt  DateTime @default(now())
+
+  userA      User     @relation("ConnectionA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB      User     @relation("ConnectionB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
 }
