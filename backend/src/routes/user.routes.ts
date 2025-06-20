@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
+import { authMiddleware, requireRole, requireRoleOrOwner } from '../middlewares/auth.middleware';
 import {
   getAllUsersController,
   getUserByIdController,
@@ -10,13 +10,10 @@ import {
 
 const router = Router();
 
-// Todas as rotas de usuário são protegidas e acessíveis apenas por admin (role "0")
-router.use(authMiddleware, requireRole(['0']));
-
-router.get('/', getAllUsersController);
-router.get('/:id', getUserByIdController);
-router.post('/', createUserController);
-router.put('/:id', updateUserController);
-router.delete('/:id', deleteUserController);
+router.get('/', authMiddleware, requireRole(['0']), getAllUsersController);
+router.get('/:id', authMiddleware, requireRoleOrOwner(['0']), getUserByIdController);
+router.post('/', authMiddleware, requireRole(['0']), createUserController);
+router.put('/:id', authMiddleware, requireRoleOrOwner(['0']), updateUserController);
+router.delete('/:id', authMiddleware, requireRole(['0']), deleteUserController);
 
 export default router;
