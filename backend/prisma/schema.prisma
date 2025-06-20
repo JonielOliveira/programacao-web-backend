@@ -21,6 +21,8 @@ model User {
   sessions         Session[]
   sentMessages     Message[]     @relation("SentMessages")
   receivedMessages Message[]     @relation("ReceivedMessages")
+  sentInvites      Invite[]      @relation("SentInvites")
+  receivedInvites  Invite[]      @relation("ReceivedInvites")
 }
 
 model UserPassword {
@@ -88,4 +90,16 @@ enum MessageStatus {
   DELIVERED
   READ
   ARCHIVED
+}
+
+model Invite {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation("SentInvites", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("ReceivedInvites", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
 }
