@@ -74,17 +74,19 @@ model Message {
   content     String
   iv          String
   sentAt      DateTime       @default(now())
-
-  senderId    String
-  sender      User           @relation("SentMessages", fields: [senderId], references: [id])
-
-  receiverId  String
-  receiver    User           @relation("ReceivedMessages", fields: [receiverId], references: [id])
-
   status      MessageStatus  @default(SENT)
   readAt      DateTime?
   isDeleted   Boolean        @default(false)
   deletedAt   DateTime?
+
+  senderId    String
+  sender      User             @relation("SentMessages", fields: [senderId], references: [id])
+
+  receiverId  String
+  receiver    User             @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  conversationId String
+  conversation  Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 enum MessageStatus {
@@ -115,5 +117,16 @@ model Connection {
   userA      User     @relation("ConnectionA", fields: [userAId], references: [id], onDelete: Cascade)
   userB      User     @relation("ConnectionB", fields: [userBId], references: [id], onDelete: Cascade)
 
+  conversation Conversation?
+
   @@unique([userAId, userBId])
+}
+
+model Conversation {
+  id           String    @id @default(uuid())
+  connectionId String    @unique
+  createdAt    DateTime  @default(now())
+
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  messages     Message[]
 }
