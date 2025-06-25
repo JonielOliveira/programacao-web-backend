@@ -76,6 +76,9 @@ model Message {
   sentAt      DateTime       @default(now())
   status      MessageStatus  @default(SENT)
   readAt      DateTime?
+
+  isUpdated   Boolean        @default(false)
+  updatedAt   DateTime?
   isDeleted   Boolean        @default(false)
   deletedAt   DateTime?
 
