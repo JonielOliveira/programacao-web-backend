@@ -201,16 +201,25 @@ export async function acceptInvite(inviteId: string, receiverId: string) {
     throw new Error('Vocês já estão conectados.');
   }
 
-  // 4. Cria a conexão e remove o convite
-  await prisma.$transaction([
-    prisma.connection.create({
+  // 4. Cria a conexão, a conversa e remove o convite
+  await prisma.$transaction(async (tx) => {
+    const connection = await tx.connection.create({
       data: {
         userAId: invite.senderId,
         userBId: invite.receiverId,
       },
-    }),
-    prisma.invite.delete({ where: { id: invite.id } }),
-  ]);
+    });
+
+    await tx.conversation.create({
+      data: {
+        connectionId: connection.id,
+      },
+    });
+
+    await tx.invite.delete({
+      where: { id: invite.id },
+    });
+  });
 
   return { message: 'Conexão criada com sucesso.' };
 }
