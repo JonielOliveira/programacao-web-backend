@@ -91,3 +91,23 @@ export async function listPaginatedConnections(
     totalPages,
   };
 }
+
+export async function deleteConnection(connectionId: string, userId: string) {
+  const connection = await prisma.connection.findUnique({
+    where: { id: connectionId },
+  });
+
+  if (!connection) {
+    throw new Error('Conexão não encontrada.');
+  }
+
+  if (connection.userAId !== userId && connection.userBId !== userId) {
+    throw new Error('Você não tem permissão para excluir essa conexão.');
+  }
+
+  await prisma.connection.delete({
+    where: { id: connectionId },
+  });
+
+  return { message: 'Conexão excluída com sucesso.' };
+}
