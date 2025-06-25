@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import {
-  getAllMessagesController,
-  getConversationController,
+  getAllMessagesByConversationController,
   getMessageByIdController,
   createMessageController,
   updateMessageController,
@@ -15,22 +14,19 @@ const router = Router();
 // Todas as rotas exigem autenticação
 router.use(authMiddleware);
 
-// Listar todas mensagens relacionadas ao usuário logado
-router.get('/', getAllMessagesController);
-
-// Listar conversa entre o usuário logado e outro usuário
-router.get('/conversation/:userId', getConversationController);
-
 // Buscar uma mensagem específica
-router.get('/:id', getMessageByIdController);
+router.get('/:id/messages/:msgId', getMessageByIdController);
+
+// Listar as mensagens de uma conversa
+router.get('/:id/messages', getAllMessagesByConversationController);
 
 // Criar nova mensagem (sender = usuário logado)
-router.post('/', createMessageController);
+router.post('/:id/messages', createMessageController);
 
 // Atualizar mensagem
-router.put('/:id', updateMessageController);
+router.put('/:id/messages/:msgId', updateMessageController);
 
 // Deletar mensagem
-router.delete('/:id', deleteMessageController);
+router.delete('/:id/messages/:msgId', deleteMessageController);
 
 export default router;

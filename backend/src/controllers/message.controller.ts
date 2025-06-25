@@ -1,65 +1,78 @@
 import { Request, Response } from 'express';
 import {
-  getAllMessagesForUser,
-  getConversationBetweenUsers,
+  getAllMessagesByConversationId,
   getMessageById,
   createMessage,
   updateMessage,
   deleteMessage
 } from '../services/message.service';
 
-export const getAllMessagesController = async (req: Request, res: Response): Promise<void> => {
+export const getAllMessagesByConversationController = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
+    const { id: conversationId } = req.params;
+
     if (!userId) {
-        res.status(401).json({ error: 'Usuário não autenticado.' });
-        return;
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
     }
-    const messages = await getAllMessagesForUser(userId);
-    res.json(messages);
+    if (!conversationId) {
+      res.status(400).json({ error: 'ID da conversa não fornecido.' });
+      return;
+    }
+
+    const messages = await getAllMessagesByConversationId({ conversationId, userId });
+    res.status(200).json(messages);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const getConversationController = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userAId = req.user?.userId;
-    const userBId = req.params.userId;
-
-    if (!userAId) {
-        res.status(401).json({ error: 'Usuário não autenticado.' });
-        return;
-    } 
-
-    const messages = await getConversationBetweenUsers(userAId, userBId);
-    res.json(messages);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
 
 export const getMessageByIdController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const message = await getMessageById(id);
-    res.json(message);
+    const userId = req.user?.userId;
+    const { id: conversationId, msgId: messageId } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    }
+    if (!conversationId) {
+      res.status(400).json({ error: 'ID da conversa não fornecido.' });
+      return;
+    }
+    if (!messageId) {
+      res.status(400).json({ error: 'ID da mensagem não fornecido.' });
+      return;
+    }
+
+    const message = await getMessageById({ conversationId, messageId, userId });
+    res.status(200).json(message);
   } catch (error: any) {
-    res.status(404).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
 
 export const createMessageController = async (req: Request, res: Response): Promise<void> => {
   try {
     const senderId = req.user?.userId;
-    const { receiverId, content } = req.body;
-
-    if (!senderId || !receiverId || !content) {
-      res.status(400).json({ error: 'Dados incompletos.' });
+    const { id: conversationId } = req.params;
+    const { content } = req.body;
+    
+    if (!senderId) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    } 
+    if (!conversationId) {
+      res.status(400).json({ error: 'ID da conversa não fornecido.' });
+      return;
+    }
+    if (!content || content.trim() === '') {
+      res.status(400).json({ error: 'O conteúdo da mensagem não pode ser vazio.' });
       return;
     }
 
-    const message = await createMessage({ senderId, receiverId, content });
+    const message = await createMessage({ conversationId, senderId, content });
     res.status(201).json(message);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -68,9 +81,29 @@ export const createMessageController = async (req: Request, res: Response): Prom
 
 export const updateMessageController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const message = await updateMessage(id, req.body);
-    res.json(message);
+    const userId = req.user?.userId;
+    const { id: conversationId, msgId: messageId } = req.params;
+    const { content } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    } 
+    if (!conversationId) {
+      res.status(400).json({ error: 'ID da conversa não fornecido.' });
+      return;
+    }
+    if (!messageId) {
+      res.status(400).json({ error: 'ID da mensagem não fornecido.' });
+      return;
+    }
+    if (!content || content.trim() === '') {
+      res.status(400).json({ error: 'O conteúdo da mensagem não pode ser vazio.' });
+      return;
+    }
+
+    const message = await updateMessage({ conversationId, messageId, userId, content });
+    res.status(200).json(message);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -78,9 +111,24 @@ export const updateMessageController = async (req: Request, res: Response): Prom
 
 export const deleteMessageController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const deleted = await deleteMessage(id);
-    res.json({ message: 'Mensagem excluída com sucesso.', deleted });
+    const userId = req.user?.userId;
+    const { id: conversationId, msgId: messageId } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Usuário não autenticado.' });
+      return;
+    }
+    if (!conversationId) {
+      res.status(400).json({ error: 'ID da conversa não fornecido.' });
+      return;
+    }
+    if (!messageId) {
+      res.status(400).json({ error: 'ID da mensagem não fornecido.' });
+      return;
+    }
+
+    const result = await deleteMessage({ conversationId, messageId, userId });
+    res.status(200).json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }

@@ -14,7 +14,7 @@ app.use(cors());
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/users', userPhotoRoutes);
-app.use('/messages', messageRoutes);
+app.use('/conversations', messageRoutes);
 app.use('/invites', inviteRoutes);
 app.use('/connections', connectionRoutes);
 app.use('/conversations', conversationRoutes);
