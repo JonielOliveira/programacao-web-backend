@@ -27,7 +27,7 @@ interface SendEmailOptions {
 export async function sendEmail({ to, subject, text }: SendEmailOptions): Promise<void> {
   if (SEND_EMAIL) {
     await transporter.sendMail({
-      from: `"Projeto Chat - Joniel" <${EMAIL_USER}>`,
+      from: `"Join & Chat" <${EMAIL_USER}>`,
       to,
       subject,
       text,
@@ -54,6 +54,6 @@ Ela é válida por apenas 15 minutos. Acesse o sistema com ela e altere sua senh
 
 Se você não solicitou isso, ignore este e-mail.
 
-Sistema Chat.`,
+Sistema Join & Chat.`,
   });
 }
