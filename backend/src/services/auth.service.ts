@@ -23,8 +23,8 @@ export async function login({ email, password }: LoginInput) {
   }
   
   // 2. Verificar status do usuário
-  if (user.status !== 'A') {
-    throw new Error('Usuário inativo ou bloqueado.');
+  if (user.status !== 'A' && user.status !== 'B') {
+    throw new Error('Usuário inativo.');
   }
 
   // 3. Atualiza estados de senha antes de login
@@ -336,6 +336,15 @@ export async function requestPasswordReset(email: string): Promise<void> {
     });
     await sendTemporaryPasswordEmail(user, tempPassword);
   }
+
+  // 7. Se o usuário estava bloqueado, desbloqueia
+  if (user?.status === 'B') {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { status: 'A' },
+    });
+  }
+
 }
 
 interface ChangePasswordInput {
