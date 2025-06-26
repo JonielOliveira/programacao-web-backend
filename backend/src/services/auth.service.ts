@@ -44,7 +44,10 @@ export async function login({ email, password }: LoginInput) {
     { expiresIn: JWT_EXPIRES_IN }
   );
 
-  // 6. Salvar sessão
+  // 6. Limpa sessões antigas, revogadas ou expiradas do usuário
+  await cleanUserSessions(user.id, 3);
+
+  // 7. Salvar sessão
   const expiresAt = addMilliseconds(new Date(), JWT_EXPIRES_IN_MS);
   const tokenHash = await bcrypt.hash(token, 10);
 
@@ -52,13 +55,13 @@ export async function login({ email, password }: LoginInput) {
     data: { userId: user.id, tokenHash, expiresAt },
   });
 
-  // 7. Incrementar accessCount
+  // 8. Incrementar accessCount
   await prisma.user.update({
     where: { id: user.id },
     data: { accessCount: { increment: 1 } },
   });
 
-  // 8. Retornar token e dados do usuário
+  // 9. Retornar token e dados do usuário
   return {
     token,
     user: {
@@ -362,4 +365,42 @@ export async function changePassword({ userId, currentPassword, newPassword }: C
   });
 
   return { message: 'Senha atualizada com sucesso.' };
+}
+
+export async function cleanUserSessions(userId: string, maxSessions: number = 3) {
+  const now = new Date();
+
+  // 1. Remove sessões expiradas
+  await prisma.session.deleteMany({
+    where: {
+      userId,
+      expiresAt: { lt: now },
+    },
+  });
+
+  // 2. Remove sessões revogadas
+  await prisma.session.deleteMany({
+    where: {
+      userId,
+      revoked: true,
+    },
+  });
+
+  // 3. Mantém apenas (maxSessions - 1) válidas mais recentes
+  const activeSessions = await prisma.session.findMany({
+    where: {
+      userId,
+      revoked: false,
+      expiresAt: { gte: now },
+    },
+    orderBy: { createdAt: 'desc' },
+    skip: maxSessions - 1,
+    select: { id: true },
+  });
+
+  if (activeSessions.length > 0) {
+    await prisma.session.deleteMany({
+      where: { id: { in: activeSessions.map((s) => s.id) } },
+    });
+  }
 }
