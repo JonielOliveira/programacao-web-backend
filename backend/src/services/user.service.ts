@@ -63,10 +63,59 @@ export async function updateUser(id: string, data: UpdateUserInput) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new Error('Usuário não encontrado.');
 
-  return prisma.user.update({
+  // Atualiza o usuário
+  const updatedUser = await prisma.user.update({
     where: { id },
     data,
   });
+
+  // Se o status foi alterado para 'A' (ativo), desbloqueia senhas bloqueadas
+  if (data.status === 'A' && user.status !== 'A') {
+    const [tempPassword, permPassword] = await Promise.all([
+      prisma.userPassword.findFirst({
+        where: { userId: id, isTemp: true, status: 'blocked' },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.userPassword.findFirst({
+        where: { userId: id, isTemp: false, status: 'blocked' },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const updates = [];
+
+    if (tempPassword) {
+      updates.push(
+        prisma.userPassword.update({
+          where: { id: tempPassword.id },
+          data: {
+            lockedUntil: null,
+            lockoutLevel: 0,
+            attempts: 0,
+            status: 'valid',
+          },
+        })
+      );
+    }
+
+    if (permPassword) {
+      updates.push(
+        prisma.userPassword.update({
+          where: { id: permPassword.id },
+          data: {
+            lockedUntil: null,
+            lockoutLevel: 0,
+            attempts: 0,
+            status: 'valid',
+          },
+        })
+      );
+    }
+
+    await Promise.all(updates);
+  }
+
+  return updatedUser;
 }
 
 export async function deleteUser(id: string) {
