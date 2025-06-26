@@ -111,6 +111,10 @@ export async function verifyUserPassword(userId: string, password: string) {
   }
 
   if (!senhaValida) {
+
+    const qtdSenhas = passwordsToTry.length;
+    let qtdBloqueadas = passwordsToTry.filter(s => s!.lockedUntil && s!.lockedUntil > now).length;
+
     for (const senha of passwordsToTry) {
       const novasTentativas = senha!.attempts + 1;
       const updates: any = { attempts: novasTentativas };
@@ -119,11 +123,20 @@ export async function verifyUserPassword(userId: string, password: string) {
         updates.lockedUntil = new Date(now.getTime() + 15 * 60000);
         updates.lockoutLevel = 1; 
         updates.status = 'blocked';
+        qtdBloqueadas++;
       }
 
       await prisma.userPassword.update({
         where: { id: senha!.id },
         data: updates,
+      });
+    }
+    
+    // Se todas as senhas foram bloqueadas, bloquear o usuário
+    if (qtdBloqueadas === qtdSenhas) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { status: 'B' },
       });
     }
 
@@ -197,6 +210,8 @@ export async function getMe(userId: string) {
 export async function refreshPasswordStates(userId: string): Promise<void> {
   const now = new Date();
 
+  let passwordWasUnblocked = false;
+
   // Função interna para aplicar as atualizações de consistência
   async function refresh(passwordId: string) {
     const password = await prisma.userPassword.findUnique({ where: { id: passwordId } });
@@ -210,6 +225,7 @@ export async function refreshPasswordStates(userId: string): Promise<void> {
       updates.lockoutLevel = 0;
       updates.attempts = 0;
       updates.status = 'valid';
+      passwordWasUnblocked = true;
     }
 
     // Se já expirou (e ainda não foi marcado como expirado)
@@ -240,6 +256,17 @@ export async function refreshPasswordStates(userId: string): Promise<void> {
   // Executa reconciliação em ambas, se existirem
   if (existingTemp) await refresh(existingTemp.id);
   if (existingPerm) await refresh(existingPerm.id);
+
+  // Se a senha foi desbloqueada, liberar também o usuário, se estiver bloqueado
+  if (passwordWasUnblocked) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user?.status === 'B') {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { status: 'A' },
+      });
+    }
+  }
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
