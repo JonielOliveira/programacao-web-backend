@@ -13,6 +13,7 @@ if (!expiresInMs) throw new Error('[config] Formato inválido de JWT_EXPIRES_IN'
 export const JWT_EXPIRES_IN_MS = expiresInMs;
 
 // App
+export const APP_HOST = process.env.API_HOST || 'localhost';
 export const APP_PORT = parseInt(process.env.API_PORT || '3333');
 
 // Admin
