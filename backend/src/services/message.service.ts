@@ -148,7 +148,7 @@ export async function createMessage(data: CreateMessageInput) {
   const encrypted = encryptMessage(data.content);
 
   // 5. Cria a mensagem
-  return prisma.message.create({
+  const message = await prisma.message.create({
     data: {
       conversationId: data.conversationId,
       senderId: data.senderId,
@@ -157,6 +157,16 @@ export async function createMessage(data: CreateMessageInput) {
       iv: encrypted.iv,
     },
   });
+
+  // 6. Retorna a mensagem criada
+  return {
+    id: message.id,
+    content: message.isDeleted ? null : decryptMessage(message.content, message.iv),
+    sentAt: message.sentAt,
+    isUpdated: message.isUpdated,
+    isDeleted: message.isDeleted,
+    isOwnMessage: true,
+  };
 }
 
 export async function updateMessage({ conversationId, messageId, userId, content }: UpdateMessageInput) {
@@ -189,10 +199,12 @@ export async function updateMessage({ conversationId, messageId, userId, content
     updatedData.updatedAt = new Date();
   }
 
-  return prisma.message.update({
+  await prisma.message.update({
     where: { id: messageId },
     data: updatedData,
   });
+
+  return getMessageById({ conversationId, messageId, userId });
 }
 
 export async function deleteMessage({ conversationId, messageId, userId }: DeleteMessageParams) {
@@ -217,4 +229,6 @@ export async function deleteMessage({ conversationId, messageId, userId }: Delet
       deletedAt: new Date(),
     },
   });
+  
+  return getMessageById({ conversationId, messageId, userId });
 }
