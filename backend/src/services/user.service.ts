@@ -25,6 +25,7 @@ export async function getAllUsers() {
       fullName: true,
       role: true,
       status: true,
+      accessCount: true,
     },
   });
 }
@@ -39,6 +40,7 @@ export async function getUserById(id: string) {
       fullName: true,
       role: true,
       status: true,
+      accessCount: true,
     },
   });
 
@@ -175,6 +177,7 @@ export async function getPaginatedUsers(
         fullName: true,
         role: true,
         status: true,
+        accessCount: true,
       },
     }),
   ]);
