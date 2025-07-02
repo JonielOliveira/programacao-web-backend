@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { errorResponse } from '../utils/response';
 import {
   getAllUsers,
   getUserById,
@@ -23,7 +24,7 @@ export const getAllUsersController = async (req: Request, res: Response): Promis
     const result = await getPaginatedUsers(page, limit, orderBy, sort, search, status, role);
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Erro ao buscar usuários.' });
+    errorResponse(res, 500, "Erro ao buscar usuários", undefined, error.message);
   }
 };
 
@@ -33,7 +34,7 @@ export const getUserByIdController = async (req: Request, res: Response): Promis
     const user = await getUserById(id);
     res.json(user);
   } catch (error: any) {
-    res.status(404).json({ error: error.message });
+    errorResponse(res, 404, "Erro ao buscar usuário", undefined, error.message);
   }
 };
 
@@ -42,7 +43,7 @@ export const createUserController = async (req: Request, res: Response): Promise
     const user = await createUser(req.body);
     res.status(201).json(user);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    errorResponse(res, 400, "Erro ao criar usuário", undefined, error.message);
   }
 };
 
@@ -52,7 +53,7 @@ export const updateUserController = async (req: Request, res: Response): Promise
     const user = await updateUser(id, req.body);
     res.json(user);
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    errorResponse(res, 400, "Erro ao atualizar usuário", undefined, error.message);
   }
 };
 
@@ -60,8 +61,8 @@ export const deleteUserController = async (req: Request, res: Response): Promise
   try {
     const { id } = req.params;
     const deleted = await deleteUser(id);
-    res.json({ message: 'Usuário deletado com sucesso.', user: deleted });
+    res.json({ message: "Usuário excluído com sucesso.", user: deleted });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    errorResponse(res, 400, "Erro ao excluir usuário", undefined, error.message);
   }
 };
