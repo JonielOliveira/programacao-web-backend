@@ -35,6 +35,23 @@ Antes de começar, certifique-se de ter os seguintes itens instalados na sua má
 
 ## :rocket: Como rodar o projeto localmente
 
+Você pode rodar o projeto de duas formas:
+
+- **Apenas localmente:** acessível somente pela máquina atual (localhost).
+- **Na rede local:** acessível por outros dispositivos na mesma rede (LAN).
+
+:pencil: **Nota:**  
+Por padrão, usamos as seguintes portas nos exemplos deste projeto:
+
+- :door: **3333** para o backend
+- :door: **3000** para o frontend (saiba mais em: [repositório frontend](https://github.com/JonielOliveira/programacao-web-frontend))
+
+Por padrão, usamos o seguinte endereço IP (fictício) nos exemplos deste projeto:
+
+- :globe_with_meridians: **192.168.0.105** para indicar o IP da máquina atual onde o backend está sendo executado
+
+Esses valores podem ser ajustados nos arquivos `.env` do [frontend](https://github.com/JonielOliveira/programacao-web-frontend) e backend, conforme necessário. Verifique se essas portas estão liberadas no firewall da sua máquina se for rodar o projeto **na rede local**.
+
 ### 1. Clone o repositório
 
 ```bash
@@ -95,17 +112,8 @@ npm run dev
 ```
 
 A API estará disponível em:  
-[http://localhost:3333](http://localhost:3333)
-
----
-
-:pencil: **Nota:**  
-Por padrão, usamos as seguintes portas nos exemplos deste projeto:
-
-- :door: **3333** para o backend  
-- :door: **3000** para o [frontend](https://github.com/JonielOliveira/programacao-web-frontend) (se estiver usando o [projeto frontend](https://github.com/JonielOliveira/programacao-web-frontend))
-
-Esses valores podem ser ajustados no arquivo `.env`, conforme necessário. Verifique se essas portas estão liberadas no firewall da sua máquina se for rodar o projeto na rede local.
+[http://localhost:3333](http://localhost:3333) – (**apenas localmente**)
+[http://192.168.0.105:3333](http://192.168.0.105:3333) – (**na rede local**)
 
 ---
 
