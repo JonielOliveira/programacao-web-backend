@@ -1,20 +1,7 @@
 import prisma from '../prisma/client';
-
-interface CreateUserInput {
-  username: string;
-  email: string;
-  fullName: string;
-  role: string; // '0' (admin) ou '1' (usuário comum)
-  status?: string; // 'A', 'I', 'B'
-}
-
-interface UpdateUserInput {
-  username?: string;
-  email?: string;
-  fullName?: string;
-  role?: string;
-  status?: string;
-}
+import { CreateUserInput, UpdateUserInput } from '../types/user';
+import { validateUserInput } from '../utils/validators';
+import { sanitizeCreateUserInput, sanitizeUpdateUserInput } from '../utils/sanitizers';
 
 export async function getAllUsers() {
   return prisma.user.findMany({
@@ -50,29 +37,77 @@ export async function getUserById(id: string) {
 }
 
 export async function createUser(data: CreateUserInput) {
+  // Sanitiza os dados de entrada
+  const sanitizedData = sanitizeCreateUserInput(data); 
+  
+  // Validação dos campos existentes
+  validateUserInput(sanitizedData);
+
+  const { username, email, fullName, role, status } = sanitizedData;
+
+  // Verificações de unicidade
+  const [existingUsername, existingEmail] = await Promise.all([
+    prisma.user.findUnique({ where: { username } }),
+    prisma.user.findUnique({ where: { email } }),
+  ]);
+
+  if (existingUsername) {
+    throw new Error("Já existe um usuário com esse username.");
+  }
+
+  if (existingEmail) {
+    throw new Error("Já existe um usuário com esse e-mail.");
+  }
+
+  // Criação do usuário
   return prisma.user.create({
     data: {
-      username: data.username,
-      email: data.email,
-      fullName: data.fullName,
-      role: data.role,
-      status: data.status || 'A',
+      username,
+      email,
+      fullName,
+      role,
+      status,
     },
   });
 }
 
 export async function updateUser(id: string, data: UpdateUserInput) {
   const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) throw new Error('Usuário não encontrado.');
+  if (!user) throw new Error("Usuário não encontrado.");
 
-  // Atualiza o usuário
-  const updatedUser = await prisma.user.update({
+  const sanitizedData = sanitizeUpdateUserInput(data);
+
+  // Valida os campos que foram passados
+  validateUserInput(sanitizedData);
+
+  const { username, email } = sanitizedData;
+
+  // Verifica se novo username já está em uso (por outro usuário)
+  if (username && username !== user.username) {
+    const existingUsername = await prisma.user.findUnique({ where: { username } });
+    if (existingUsername) {
+      throw new Error("Já existe um usuário com esse username.");
+    }
+  }
+
+  // Verifica se novo email já está em uso (por outro usuário)
+  if (email && email !== user.email) {
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) {
+      throw new Error("Já existe um usuário com esse e-mail.");
+    }
+  }
+
+  // Atualiza o usuário com os campos sanitizados
+  const updatedUser = prisma.user.update({
     where: { id },
-    data,
+    data: sanitizedData,
   });
 
+  const { status: inputStatus } = sanitizedData;
+
   // Se o status foi alterado para 'A' (ativo), desbloqueia senhas bloqueadas
-  if (data.status === 'A' && user.status !== 'A') {
+  if (inputStatus === 'A' && user.status !== 'A') {
     const [tempPassword, permPassword] = await Promise.all([
       prisma.userPassword.findFirst({
         where: { userId: id, isTemp: true, status: 'blocked' },
