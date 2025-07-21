@@ -1,4 +1,5 @@
 import prisma from '../prisma/client';
+import { Prisma } from '@prisma/client';
 
 export async function listPaginatedConnections(
   userId: string,
@@ -16,8 +17,8 @@ export async function listPaginatedConnections(
           userB: {
             is: {
               OR: [
-                { username: { contains: search, mode: 'insensitive' } },
-                { fullName: { contains: search, mode: 'insensitive' } },
+                { username: { contains: search, mode: 'insensitive' as Prisma.QueryMode } },
+                { fullName: { contains: search, mode: 'insensitive' as Prisma.QueryMode } },
               ],
             },
           },
@@ -32,8 +33,8 @@ export async function listPaginatedConnections(
           userA: {
             is: {
               OR: [
-                { username: { contains: search, mode: 'insensitive' } },
-                { fullName: { contains: search, mode: 'insensitive' } },
+                { username: { contains: search, mode: 'insensitive' as Prisma.QueryMode } },
+                { fullName: { contains: search, mode: 'insensitive' as Prisma.QueryMode } },
               ],
             },
           },
