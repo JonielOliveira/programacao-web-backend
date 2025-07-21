@@ -3,7 +3,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET, JWT_EXPIRES_IN, JWT_EXPIRES_IN_MS } from '../config/config';
 import { addMilliseconds, addMinutes } from 'date-fns';
-import { Session } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { sendTemporaryPasswordEmail } from '../utils/email.util';
 
@@ -423,7 +422,7 @@ export async function cleanUserSessions(userId: string, maxSessions: number = 3)
   });
 
   // 3. Mantém apenas (maxSessions - 1) válidas mais recentes
-  const activeSessions = await prisma.session.findMany({
+  const activeSessions: { id: string }[] = await prisma.session.findMany({
     where: {
       userId,
       revoked: false,
