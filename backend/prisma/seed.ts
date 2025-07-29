@@ -1,6 +1,19 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import { ADMIN_USERNAME, ADMIN_FULLNAME, ADMIN_EMAIL, ADMIN_PASSWORD } from '../src/config/config';
+import * as dotenv from 'dotenv';
+
+dotenv.config({ path: '.env' });
+
+const {
+  ADMIN_USERNAME,
+  ADMIN_FULLNAME,
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+} = process.env;
+
+if (!ADMIN_USERNAME || !ADMIN_FULLNAME || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  throw new Error('Variáveis de ambiente para usuário admin estão ausentes.');
+}
 
 const prisma = new PrismaClient();
 
@@ -13,16 +26,16 @@ async function main() {
     console.warn('Não foi possível criar a extensão pgcrypto. Verifique permissões ou crie manualmente.');
   }
 
-  const senhaCriptografada = await bcrypt.hash(ADMIN_PASSWORD, 10);
+  const senhaCriptografada = await bcrypt.hash(ADMIN_PASSWORD!, 10);
 
   // Criação de usuário admin padrão
   const admin = await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
     update: {},
     create: {
-      username: ADMIN_USERNAME,
-      fullName: ADMIN_FULLNAME,
-      email: ADMIN_EMAIL,
+      username: ADMIN_USERNAME!,
+      fullName: ADMIN_FULLNAME!,
+      email: ADMIN_EMAIL!,
       role: '0', // 0 = Admin
       status: 'A',
       passwords: {
